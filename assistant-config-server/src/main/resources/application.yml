@@ -8,5 +8,8 @@ spring:
     config:
       server:
         git:
-          uri: https://github.com/thuggeelya/assistant
-          search-paths: config-repo
+          uri: https://github.com/thuggeelya/assistant-config-repo.git
+          search-paths: "{application}"
+          username: thuggeelya
+          password: ${CONFIG_SERVER_GIT_TOKEN}
+          default-label: master
