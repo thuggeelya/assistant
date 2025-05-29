@@ -1,6 +1,7 @@
-package com.thuggeelya.assistantclient.integration;
+package com.thuggeelya.assistantclient.integration.service;
 
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -8,6 +9,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
+@Slf4j
 @Service
 public class OllamaService {
 
@@ -38,6 +40,9 @@ public class OllamaService {
     }
 
     public Mono<String> askFallback(final String prompt, final Throwable t) {
+
+        log.debug("OllamaService error: {}", t.getMessage(), t);
+
         return Mono.just("Сервис временно недоступен. Попробуйте позже.");
     }
 }

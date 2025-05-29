@@ -9,3 +9,11 @@ spring:
     config:
       uri: http://localhost:8888
       fail-fast: false
+
+ollama:
+  base-url: http://localhost:11434
+  model: mistral
+
+rag:
+  enabled: true
+  base-url: http://localhost:5050
