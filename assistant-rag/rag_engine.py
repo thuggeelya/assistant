@@ -1,8 +1,10 @@
+import hashlib
 import os
-import uuid
 
+import fitz  # PyMuPDF
 import requests
 import torch
+from docx import Document
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
@@ -23,35 +25,59 @@ qdrant = QdrantClient(QDRANT_HOST)
 COLLECTION_NAME = "rag-docs"
 
 # Создаём коллекцию, если не существует
-try:
-    qdrant.get_collection(COLLECTION_NAME)
-except:
-    qdrant.recreate_collection(
+if not qdrant.collection_exists(COLLECTION_NAME):
+    qdrant.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=embedding_model.get_sentence_embedding_dimension(), distance=Distance.COSINE)
     )
 
 
+def get_text_hash(text):
+    # Вычисляем уникальный хеш ID текста
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def extract_text_from_pdf(filepath):
+    doc = fitz.open(filepath)
+    return "\n".join(page.get_text() for page in doc)
+
+
+def extract_text_from_docx(filepath):
+    doc = Document(filepath)
+    return "\n".join(p.text for p in doc.paragraphs)
+
+
 def index_documents(folder_path):
-    # Индексируем текстовые файлы из папки
+    # Индексируем документы (txt, pdf, docx) из папки
     docs = []
+
     for filename in os.listdir(folder_path):
         filepath = os.path.join(folder_path, filename)
-        if not filename.endswith(".txt"):
+        if filename.endswith(".txt"):
+            with open(filepath, "r", encoding="utf-8") as f:
+                text = f.read()
+        elif filename.endswith(".pdf"):
+            text = extract_text_from_pdf(filepath)
+        elif filename.endswith(".docx"):
+            text = extract_text_from_docx(filepath)
+        else:
             continue
-        with open(filepath, "r", encoding="utf-8") as f:
-            text = f.read()
-            docs.append((filename, text))
+        docs.append((filename, text))
 
     points = []
+
     for fname, text in docs:
-        vector = embedding_model.encode(text)
-        point = PointStruct(
-            id=str(uuid.uuid4()),
-            vector=vector,
-            payload={"filename": fname, "text": text}
-        )
-        points.append(point)
+        text_id = get_text_hash(text)
+        existing_id_set = set(p.id for p in qdrant.scroll(collection_name=COLLECTION_NAME, limit=10_000)[0])
+
+        if text_id not in existing_id_set:
+            vector = embedding_model.encode(text)
+            point = PointStruct(
+                id=text_id,
+                vector=vector,
+                payload={"filename": fname, "text": text}
+            )
+            points.append(point)
 
     qdrant.upsert(collection_name=COLLECTION_NAME, points=points)
 
@@ -90,8 +116,8 @@ def call_ollama(prompt):
 
 
 def answer_question(query):
-    # Общая функция ответа на вопрос
     docs = retrieve_documents(query)
     ranked_docs = rerank_documents(query, docs)
     prompt = build_prompt(query, ranked_docs)
-    return call_ollama(prompt)
+    answer = call_ollama(prompt)
+    return {"response": answer, "prompt": prompt}

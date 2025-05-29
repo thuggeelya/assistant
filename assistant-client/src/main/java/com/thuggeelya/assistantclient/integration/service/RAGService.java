@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 public class RAGService {
 
     private final RagClient ragClient;
+    private final ChatLogService chatLogService;
 
     @TimeLimiter(name = "rag")
     @CircuitBreaker(name = "rag", fallbackMethod = "fallbackAnswer")
@@ -27,7 +28,9 @@ public class RAGService {
             final RagRequestDto request = new RagRequestDto(question);
             final RagResponseDto response = ragClient.ask(request);
 
-            log.debug("Generated prompt:\n{}", response.getPrompt());
+            log.debug("RAG prompt:\n{}", response.getPrompt());
+
+            chatLogService.save(question, response.getPrompt(), response.getResponse(), "rag");
 
             return response.getResponse();
         });
@@ -35,11 +38,9 @@ public class RAGService {
 
     public CompletableFuture<String> fallbackAnswer(final String question, final Throwable t) {
 
-        log.debug("RAGService error: {}", t.getMessage(), t);
+        log.debug("RAG service error: {}", t.getMessage(), t);
 
-        return CompletableFuture.failedFuture(
-                new RuntimeException("Ассистент не смог обработать ваш вопрос, попробуйте позже.")
-        );
+        return CompletableFuture.completedFuture("Ассистент не смог обработать ваш вопрос, попробуйте позже.");
     }
 
 }

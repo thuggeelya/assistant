@@ -20,8 +20,11 @@ def ask():
     question = data.get("question")  # Извлекаем поле 'question'
     if not question:
         return jsonify({"error": "Missing 'question' field"}), 400  # Возвращаем ошибку, если нет вопроса
-    response = answer_question(question)  # Отправляем вопрос в движок RAG и получаем ответ
-    return jsonify({"response": response})  # Возвращаем результат в виде JSON
+    result = answer_question(question)  # Отправляем вопрос в движок RAG и получаем ответ
+    return jsonify({
+        "response": result["response"],
+        "prompt": result["prompt"]
+    })  # Возвращаем результат в виде JSON
 
 
 @app.route("/upload", methods=["POST"])  # Эндпоинт для загрузки zip-архива с документами

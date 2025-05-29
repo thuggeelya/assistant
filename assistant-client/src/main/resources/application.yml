@@ -10,6 +10,16 @@ spring:
       uri: http://localhost:8888
       fail-fast: false
 
+  datasource:
+    url: jdbc:postgresql://localhost:5432/assistant
+    username: assistant
+    password: assistant
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+
 ollama:
   base-url: http://localhost:11434
   model: mistral
